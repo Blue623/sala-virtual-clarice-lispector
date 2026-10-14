@@ -9,29 +9,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Volume2,
   VolumeX,
-  Crosshair,
-  HelpCircle,
   Keyboard,
-  Waves,
-  BookOpen,
-  Mic,
-  Feather,
-  X,
-  Plus,
-  Trash2,
-  Copy,
-  Download,
-  Sparkles,
   Sun,
   Moon,
-  Check,
-  Upload,
-  RotateCcw,
-  Phone,
-  Camera,
-  Coffee,
-  Quote,
-  Armchair
+  X
 } from 'lucide-react';
 import {
   createWainscotingAndWallArt,
@@ -44,7 +25,6 @@ import {
   createBookcaseCeramicsAndRecords,
   createDeskBookStacksAndCoffee
 } from './furniture3D.ts';
-import { HISTORICAL_PHOTOS } from './historicalPhotos.ts';
 import {
   WINDOW_PHOTO_PRESETS,
   WindowPhotoPresetId,
@@ -54,12 +34,6 @@ import {
   createDustMotesSystem,
   DustMotesSystem
 } from './dustParticles.ts';
-
-interface NoteItem {
-  id: number;
-  date: string;
-  text: string;
-}
 
 const FAMOUS_QUOTES = [
   "Escrevo como se fosse para salvar a vida de alguém. Provavelmente a minha própria.",
@@ -76,23 +50,19 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const vrButtonContainerRef = useRef<HTMLDivElement>(null);
 
-  // Audio state
+  // Audio states
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oceanGainRef = useRef<GainNode | null>(null);
   const [isOceanPlaying, setIsOceanPlaying] = useState<boolean>(false);
-  const [soundVolume, setSoundVolume] = useState<number>(0.3);
+  const [soundVolume] = useState<number>(0.3);
 
   // Time of Day state: 'golden', 'night', 'day'
   const [timeOfDay, setTimeOfDay] = useState<'golden' | 'night' | 'day'>('golden');
 
   // Modals state
   const [activeModal, setActiveModal] = useState<string | null>(null);
-
-  // Typewriter state
   const [typedText, setTypedText] = useState<string>('');
-  const [savedNotes, setSavedNotes] = useState<NoteItem[]>([]);
-  const [quoteIndex, setQuoteIndex] = useState<number>(0);
-  const [copiedNoteId, setCopiedNoteId] = useState<number | null>(null);
+  const [quoteIndex] = useState<number>(0);
 
   // Three.js scene refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -106,30 +76,15 @@ export default function App() {
   const windowLightRef = useRef<THREE.DirectionalLight | null>(null);
   const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
   const dustSystemRef = useRef<DustMotesSystem | null>(null);
-  const [dustMotesActive, setDustMotesActive] = useState<boolean>(true);
 
-  // Spatial UI Panel in 3D for Meta Quest
+  // Spatial UI Panel
   const spatialUIPanelRef = useRef<THREE.Mesh | null>(null);
   const spatialCloseBtnRef = useRef<THREE.Mesh | null>(null);
 
-  // Load saved notes
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('clarice_study_notes');
-      if (stored) setSavedNotes(JSON.parse(stored));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const saveNoteList = (notes: NoteItem[]) => {
-    setSavedNotes(notes);
-    try {
-      localStorage.setItem('clarice_study_notes', JSON.stringify(notes));
-    } catch {
-      // ignore
-    }
-  };
+  // Teleportation and VR Rig Refs
+  const cameraGroupRef = useRef<THREE.Group | null>(null);
+  const floorRef = useRef<THREE.Mesh | null>(null);
+  const teleportMarkerRef = useRef<THREE.Mesh | null>(null);
 
   /* ---------------- Audio Synthesis ---------------- */
   const initAudio = useCallback(() => {
@@ -170,18 +125,6 @@ export default function App() {
       filter.connect(clickGain);
       clickGain.connect(ctx.destination);
       whiteNoise.start(now);
-
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(150 + Math.random() * 30, now);
-      osc.frequency.exponentialRampToValueAtTime(25, now + 0.04);
-      oscGain.gain.setValueAtTime(0.3 * intensity * soundVolume * 3, now);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-      osc.connect(oscGain);
-      oscGain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.05);
     } catch {
       // Audio fallback
     }
@@ -224,12 +167,6 @@ export default function App() {
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(340, ctx.currentTime);
 
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      lfo.frequency.setValueAtTime(0.12, ctx.currentTime);
-      lfoGain.gain.setValueAtTime(170, ctx.currentTime);
-      lfo.connect(filter.frequency);
-
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.001, ctx.currentTime);
       gain.gain.linearRampToValueAtTime(0.25 * soundVolume * 3, ctx.currentTime + 1.8);
@@ -239,7 +176,6 @@ export default function App() {
       gain.connect(ctx.destination);
 
       noise.start();
-      lfo.start();
       oceanGainRef.current = gain;
       setIsOceanPlaying(true);
     } catch (err) {
@@ -253,7 +189,7 @@ export default function App() {
       const ctx = audioCtxRef.current;
       if (!ctx) return;
       const now = ctx.currentTime;
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 5; i++) {
         const pulseTime = now + i * 0.052;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -282,7 +218,6 @@ export default function App() {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(95, now);
       osc.frequency.linearRampToValueAtTime(140, now + 0.12);
-      osc.frequency.linearRampToValueAtTime(80, now + 0.28);
       gain.gain.setValueAtTime(0.001, now);
       gain.gain.linearRampToValueAtTime(0.15 * soundVolume * 3, now + 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
@@ -295,30 +230,19 @@ export default function App() {
     }
   }, [initAudio, soundVolume]);
 
-  // Gallery and window
-  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
-  const [customWindowImage, setCustomWindowImage] = useState<string | null>(null);
-  const [windowPanoramaDataUrl, setWindowPanoramaDataUrl] = useState<string>('');
-  const customImgElementRef = useRef<HTMLImageElement | null>(null);
-
-  const [windowPhotoPreset, setWindowPhotoPreset] = useState<WindowPhotoPresetId>(() => {
-    try {
-      return (localStorage.getItem('clarice_window_photo_preset') as WindowPhotoPresetId) || 'copacabana_view';
-    } catch {
-      return 'copacabana_view';
+  /* ---------------- Feedback Háptico para Meta Quest ---------------- */
+  const triggerHapticFeedback = (controller: any, intensity = 0.6, duration = 40) => {
+    if (controller?.gamepad?.hapticActuators && controller.gamepad.hapticActuators[0]) {
+      controller.gamepad.hapticActuators[0].pulse(intensity, duration);
     }
-  });
+  };
 
-  const renderWindowCanvas = useCallback((
-    mode: 'golden' | 'night' | 'day',
-    customImg?: HTMLImageElement | null,
-    presetId?: WindowPhotoPresetId
-  ) => {
-    const activePreset = presetId || windowPhotoPreset;
-    return renderPhotographicWindow(activePreset, mode, customImg !== undefined ? customImg : customImgElementRef.current);
-  }, [windowPhotoPreset]);
+  /* ---------------- Render Window ---------------- */
+  const renderWindowCanvas = useCallback((mode: 'golden' | 'night' | 'day') => {
+    return renderPhotographicWindow('copacabana_view', mode, null);
+  }, []);
 
-  /* ---------------- Helper: Render Spatial UI Canvas Texture for Meta Quest ---------------- */
+  /* ---------------- Painel Espacial 3D (Spatial UI) ---------------- */
   const updateSpatialVRPanel = useCallback((title: string, lines: string[]) => {
     if (!spatialUIPanelRef.current) return;
     const canvas = document.createElement('canvas');
@@ -327,25 +251,20 @@ export default function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Background Glassmorphism Panel
     ctx.fillStyle = 'rgba(8, 12, 22, 0.94)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 6;
     ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
-    // Header Tag
     ctx.fillStyle = '#38bdf8';
-    ctx.font = 'bold 28px Courier Prime, monospace';
+    ctx.font = 'bold 28px monospace';
     ctx.fillText('CLARICE LISPECTOR • ESPAÇO VIRTUAL META QUEST', 50, 70);
 
-    // Title
     ctx.fillStyle = '#fde68a';
     ctx.font = 'bold 44px serif';
     ctx.fillText(title, 50, 140);
 
-    // Separator
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -353,7 +272,6 @@ export default function App() {
     ctx.lineTo(974, 170);
     ctx.stroke();
 
-    // Body Lines
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '30px serif';
     let yPos = 240;
@@ -362,10 +280,9 @@ export default function App() {
       yPos += 48;
     });
 
-    // Footer tip
     ctx.fillStyle = '#94a3b8';
-    ctx.font = 'italic 24px Courier Prime, monospace';
-    ctx.fillText('[Aponte com o controle no botão vermelho para fechar]', 50, 580);
+    ctx.font = 'italic 24px monospace';
+    ctx.fillText('[Aponte o raio no botão vermelho para fechar]', 50, 580);
 
     const texture = new THREE.CanvasTexture(canvas);
     (spatialUIPanelRef.current.material as THREE.MeshBasicMaterial).map = texture;
@@ -374,8 +291,10 @@ export default function App() {
     if (spatialCloseBtnRef.current) spatialCloseBtnRef.current.visible = true;
   }, []);
 
-  /* ---------------- Trigger Hotspot Modal (Unificado Desktop + VR) ---------------- */
-  const handleHotspotTrigger = useCallback((id: string) => {
+  /* ---------------- Trigger Hotspot Modal ---------------- */
+  const handleHotspotTrigger = useCallback((id: string, controller?: any) => {
+    if (controller) triggerHapticFeedback(controller, 0.8, 50);
+
     if (id === 'rotary_phone') {
       playRotaryDialSound();
       updateSpatialVRPanel('Telefone de Baquelite', [
@@ -398,7 +317,7 @@ export default function App() {
         '"O mar é uma certeza sem palavras. A onda vem e desfaz tudo."',
         '',
         'A curva da praia de Copacabana e o Forte do Leme.',
-        'O som das marés acompanha suas criações.'
+        'O som das marés acompanha suas criações literárias.'
       ]);
     } else if (id === 'sofa') {
       playTypewriterClick(1.0);
@@ -416,19 +335,11 @@ export default function App() {
         '— Clarice Lispector',
         'Cada toque ressoa na acústica do gabinete no Leme.'
       ]);
-    } else if (id === 'wall_quote') {
-      playTypewriterClick(0.8);
-      updateSpatialVRPanel('A Inscrição na Parede', [
-        '"Se vocês gostam de escrever ou desenhar ou pintar, façam!',
-        'A gente não se sente mais sozinha, e fica de coração quente."',
-        '',
-        'Manifesto afetivo pintado no apartamento.'
-      ]);
     } else {
       playTypewriterClick(0.9);
       updateSpatialVRPanel('Memórias de Clarice', [
-        'Registro de fragmentos literários, fotos e manuscritos.',
-        'Explore outros anéis luminosos pela sala.'
+        'Registro de fragmentos literários e manuscritos.',
+        'Aponte para o chão para se teletransportar pela sala.'
       ]);
     }
     setActiveModal(id);
@@ -438,14 +349,9 @@ export default function App() {
   useEffect(() => {
     if (!deskSpotRef.current || !windowLightRef.current || !ambientLightRef.current || !windowTextureRef.current) return;
 
-    const canvas = renderWindowCanvas(timeOfDay, customImgElementRef.current);
+    const canvas = renderWindowCanvas(timeOfDay);
     windowTextureRef.current.image = canvas;
     windowTextureRef.current.needsUpdate = true;
-    try {
-      setWindowPanoramaDataUrl(canvas.toDataURL('image/jpeg', 0.92));
-    } catch {
-      // ignore
-    }
 
     if (timeOfDay === 'golden') {
       ambientLightRef.current.color.setHex(0xdce7f5);
@@ -473,7 +379,7 @@ export default function App() {
     dustSystemRef.current?.setTimeOfDay(timeOfDay);
   }, [timeOfDay, renderWindowCanvas]);
 
-  /* ---------------- Three.js Scene Setup (com Meta Quest WebXR) ---------------- */
+  /* ---------------- Three.js Scene Setup ---------------- */
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -487,19 +393,18 @@ export default function App() {
     camera.position.set(0, 1.45, 1.85);
     cameraRef.current = camera;
 
-    // Rig para compatibilidade entre Desktop Orbit e VR Quest
+    // Rig para compatibilidade entre Desktop e WebXR
     const cameraGroup = new THREE.Group();
     cameraGroup.position.set(0, 0, 0);
     cameraGroup.add(camera);
     scene.add(cameraGroup);
+    cameraGroupRef.current = cameraGroup;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
     renderer.xr.enabled = true;
     rendererRef.current = renderer;
 
@@ -510,28 +415,31 @@ export default function App() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.target.set(0, 1.15, -0.2);
-    controls.maxPolarAngle = Math.PI / 2 + 0.05;
-    controls.minDistance = 0.5;
-    controls.maxDistance = 5.0;
     controlsRef.current = controls;
 
     const interactiveList: THREE.Object3D[] = [];
     interactiveObjectsRef.current = interactiveList;
 
-    /* ---------------- Meta Quest VR Controllers & Laser Ray ---------------- */
+    /* ---------------- Teleport Marker (Chão) ---------------- */
+    const markerGeo = new THREE.RingGeometry(0.18, 0.22, 32);
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
+    const teleportMarker = new THREE.Mesh(markerGeo, markerMat);
+    teleportMarker.rotation.x = -Math.PI / 2;
+    teleportMarker.visible = false;
+    scene.add(teleportMarker);
+    teleportMarkerRef.current = teleportMarker;
+
+    /* ---------------- Controles WebXR e Raycaster ---------------- */
     const controller1 = renderer.xr.getController(0);
     const controller2 = renderer.xr.getController(1);
 
     const laserGeom = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, 0, -3.5)
+      new THREE.Vector3(0, 0, -4)
     ]);
-    const laserMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.7 });
-
-    const laser1 = new THREE.Line(laserGeom, laserMat);
-    const laser2 = new THREE.Line(laserGeom.clone(), laserMat.clone());
-    controller1.add(laser1);
-    controller2.add(laser2);
+    const laserMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 });
+    controller1.add(new THREE.Line(laserGeom, laserMat));
+    controller2.add(new THREE.Line(laserGeom.clone(), laserMat.clone()));
 
     const vrRaycaster = new THREE.Raycaster();
     const tempMatrix = new THREE.Matrix4();
@@ -543,20 +451,35 @@ export default function App() {
       vrRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
       vrRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-      const intersects = vrRaycaster.intersectObjects(interactiveObjectsRef.current, true);
-      if (intersects.length > 0) {
-        let root: THREE.Object3D | null = intersects[0].object;
+      // 1. Checa se o usuário clicou para fechar o painel 3D
+      const uiIntersects = vrRaycaster.intersectObjects([spatialCloseBtnRef.current!].filter(Boolean), true);
+      if (uiIntersects.length > 0) {
+        if (spatialUIPanelRef.current) spatialUIPanelRef.current.visible = false;
+        if (spatialCloseBtnRef.current) spatialCloseBtnRef.current.visible = false;
+        triggerHapticFeedback(controller, 0.4, 30);
+        return;
+      }
+
+      // 2. Checa se o usuário clicou nos objetos interativos
+      const objectIntersects = vrRaycaster.intersectObjects(interactiveObjectsRef.current, true);
+      if (objectIntersects.length > 0) {
+        let root: THREE.Object3D | null = objectIntersects[0].object;
         while (root && !root.userData?.id && root !== scene) {
           root = root.parent;
         }
-        if (root && root.userData?.id) {
-          if (root.userData.id === 'close_spatial_ui') {
-            if (spatialUIPanelRef.current) spatialUIPanelRef.current.visible = false;
-            if (spatialCloseBtnRef.current) spatialCloseBtnRef.current.visible = false;
-            playTypewriterClick(0.6);
-          } else {
-            handleHotspotTrigger(root.userData.id);
-          }
+        if (root?.userData?.id) {
+          handleHotspotTrigger(root.userData.id, controller);
+          return;
+        }
+      }
+
+      // 3. Teletransporte: Se clicou no chão
+      if (floorRef.current) {
+        const floorIntersects = vrRaycaster.intersectObject(floorRef.current);
+        if (floorIntersects.length > 0 && cameraGroupRef.current) {
+          const targetPoint = floorIntersects[0].point;
+          cameraGroupRef.current.position.set(targetPoint.x, 0, targetPoint.z);
+          triggerHapticFeedback(controller, 0.3, 25);
         }
       }
     };
@@ -566,7 +489,7 @@ export default function App() {
     cameraGroup.add(controller1);
     cameraGroup.add(controller2);
 
-    /* ---------------- WebXR Spatial UI Panel 3D ---------------- */
+    /* ---------------- WebXR Spatial UI Panel ---------------- */
     const panelGeo = new THREE.PlaneGeometry(1.6, 1.0);
     const panelMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
     const spatialPanel = new THREE.Mesh(panelGeo, panelMat);
@@ -575,18 +498,15 @@ export default function App() {
     scene.add(spatialPanel);
     spatialUIPanelRef.current = spatialPanel;
 
-    // Botão de fechar o painel 3D
     const closeBtnGeo = new THREE.BoxGeometry(0.18, 0.08, 0.04);
     const closeBtnMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
     const closeBtn = new THREE.Mesh(closeBtnGeo, closeBtnMat);
     closeBtn.position.set(0.7, 0.44, 0.03);
-    closeBtn.userData = { id: 'close_spatial_ui' };
     closeBtn.visible = false;
     spatialPanel.add(closeBtn);
     spatialCloseBtnRef.current = closeBtn;
-    interactiveList.push(closeBtn);
 
-    /* ---------------- WebXR Session Setup Button ---------------- */
+    /* ---------------- Botão Entrar no VR ---------------- */
     const xr = (navigator as unknown as { xr?: any }).xr;
     if (xr && vrButtonContainerRef.current) {
       const button = document.createElement('button');
@@ -636,6 +556,8 @@ export default function App() {
     deskSpot.position.set(-0.45, 1.75, -0.25);
     deskSpot.target.position.set(0, 0.9, -0.3);
     deskSpot.castShadow = true;
+    deskSpot.shadow.mapSize.width = 1024;
+    deskSpot.shadow.mapSize.height = 1024;
     scene.add(deskSpot);
     scene.add(deskSpot.target);
     deskSpotRef.current = deskSpot;
@@ -647,49 +569,16 @@ export default function App() {
     scene.add(windowLight.target);
     windowLightRef.current = windowLight;
 
-    /* Room Architecture */
-    const room = new THREE.Group();
+    /* Piso com suporte a Teletransporte */
     const floorGeo = new THREE.PlaneGeometry(8, 8);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d271d, roughness: 0.65, metalness: 0.1 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
-    room.add(floor);
+    scene.add(floor);
+    floorRef.current = floor;
 
-    const ceilGeo = new THREE.PlaneGeometry(8, 8);
-    const ceilMat = new THREE.MeshStandardMaterial({ color: 0x181a24, roughness: 0.9 });
-    const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
-    ceiling.position.y = 3.2;
-    ceiling.rotation.x = Math.PI / 2;
-    room.add(ceiling);
-
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd6cbb8, roughness: 0.85 });
-    const backWallL = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 0.2), wallMat);
-    backWallL.position.set(-2.2, 1.6, -2.6);
-    room.add(backWallL);
-
-    const backWallR = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 0.2), wallMat);
-    backWallR.position.set(2.2, 1.6, -2.6);
-    room.add(backWallR);
-
-    const backWallTop = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.7, 0.2), wallMat);
-    backWallTop.position.set(0, 2.85, -2.6);
-    room.add(backWallTop);
-
-    const backWallBtm = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.9, 0.25), wallMat);
-    backWallBtm.position.set(0, 0.45, -2.6);
-    room.add(backWallBtm);
-
-    const sideWallL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 8), wallMat);
-    sideWallL.position.set(-3.0, 1.6, 0);
-    room.add(sideWallL);
-
-    const sideWallR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 8), wallMat);
-    sideWallR.position.set(3.0, 1.6, 0);
-    room.add(sideWallR);
-    scene.add(room);
-
-    /* Window View to Copacabana */
+    /* Janela e Parede de Fundo */
     const windowCanvas = renderWindowCanvas('golden');
     const windowTexture = new THREE.CanvasTexture(windowCanvas);
     windowTextureRef.current = windowTexture;
@@ -699,7 +588,7 @@ export default function App() {
       new THREE.MeshBasicMaterial({ map: windowTexture })
     );
     windowBackdrop.position.set(0, 1.85, -2.62);
-    windowBackdrop.userData = { id: 'window', title: 'Janela para o Leme e Atlântico' };
+    windowBackdrop.userData = { id: 'window', title: 'Janela para o Leme' };
     scene.add(windowBackdrop);
     interactiveList.push(windowBackdrop);
 
@@ -712,7 +601,7 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    // Máquina de Escrever Olympia
+    // Máquina Olympia
     const typewriterGroup = new THREE.Group();
     typewriterGroup.position.set(0, 1.0, -0.2);
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.34), new THREE.MeshStandardMaterial({ color: 0x222428 }));
@@ -721,19 +610,9 @@ export default function App() {
     interactiveList.push(typewriterGroup);
     deskGroup.add(typewriterGroup);
 
-    // Microfone TV Cultura 1977
-    const micHead = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 0.1, 16),
-      new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9 })
-    );
-    micHead.position.set(0.28, 1.26, -0.32);
-    micHead.userData = { id: 'interview', title: 'Entrevista 1977' };
-    interactiveList.push(micHead);
-    deskGroup.add(micHead);
-
     scene.add(deskGroup);
 
-    /* Authentic Furniture */
+    /* Authentic Furnishings */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createStripedRug());
     scene.add(createModernistSofa(interactiveList));
@@ -748,12 +627,10 @@ export default function App() {
     const markers = [
       { id: 'typewriter', pos: new THREE.Vector3(0, 1.25, -0.2), color: 0xf59e0b },
       { id: 'window', pos: new THREE.Vector3(0, 2.2, -2.4), color: 0x38bdf8 },
-      { id: 'interview', pos: new THREE.Vector3(0.28, 1.35, -0.32), color: 0xc084fc },
       { id: 'rocking_chair', pos: new THREE.Vector3(-0.8, 0.95, 0.45), color: 0xeab308 },
       { id: 'sofa', pos: new THREE.Vector3(-2.0, 0.85, 0.2), color: 0x10b981 },
       { id: 'rotary_phone', pos: new THREE.Vector3(-2.05, 0.75, -0.95), color: 0xef4444 },
-      { id: 'coffee_table', pos: new THREE.Vector3(-1.25, 0.55, 0.45), color: 0x06b6d4 },
-      { id: 'wall_quote', pos: new THREE.Vector3(-2.8, 1.85, 0.8), color: 0xa855f7 }
+      { id: 'coffee_table', pos: new THREE.Vector3(-1.25, 0.55, 0.45), color: 0x06b6d4 }
     ];
 
     const rings: THREE.Mesh[] = [];
@@ -770,12 +647,12 @@ export default function App() {
     hotspotRingsRef.current = rings;
 
     /* Dust Motes System */
-    const dustSystem = createDustMotesSystem(350);
+    const dustSystem = createDustMotesSystem(300);
     dustSystem.setTimeOfDay(timeOfDay);
     scene.add(dustSystem.group);
     dustSystemRef.current = dustSystem;
 
-    /* Desktop Mouse Raycasting */
+    /* Desktop Click Raycasting */
     const mouseRaycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -789,7 +666,7 @@ export default function App() {
         while (root && !root.userData?.id && root !== scene) {
           root = root.parent;
         }
-        if (root && root.userData?.id) {
+        if (root?.userData?.id) {
           handleHotspotTrigger(root.userData.id);
         }
       }
@@ -803,21 +680,41 @@ export default function App() {
     };
     window.addEventListener('resize', onWindowResize);
 
-    /* Animation Loop */
+    /* ---------------- Snap Turn & Animation Loop ---------------- */
     const clock = new THREE.Clock();
+    let snapCooldown = false;
+
     renderer.setAnimationLoop(() => {
       const time = clock.getElapsedTime();
 
-      // Pulsing rings e rotação para a câmera
+      // Rotação dos anéis
       hotspotRingsRef.current.forEach((r) => {
         r.lookAt(camera.position);
         const scale = 1 + Math.sin(time * 3.0) * 0.08;
         r.scale.set(scale, scale, scale);
       });
 
-      // Painel espacial sempre virado para o jogador em VR
+      // Painel 3D virado para a cabeça do jogador
       if (spatialUIPanelRef.current && spatialUIPanelRef.current.visible) {
         spatialUIPanelRef.current.lookAt(camera.position);
+      }
+
+      // Snap Turn no Controle Direito (Analógico X)
+      const session = renderer.xr.getSession();
+      if (session) {
+        for (const source of session.inputSources) {
+          if (source.gamepad && source.handedness === 'right') {
+            const axisX = source.gamepad.axes[2] || source.gamepad.axes[0] || 0;
+            if (Math.abs(axisX) > 0.75) {
+              if (!snapCooldown && cameraGroupRef.current) {
+                const angle = axisX > 0 ? -Math.PI / 4 : Math.PI / 4;
+                cameraGroupRef.current.rotation.y += angle;
+                snapCooldown = true;
+                setTimeout(() => { snapCooldown = false; }, 400);
+              }
+            }
+          }
+        }
       }
 
       if (dustSystemRef.current && dustSystemRef.current.group.visible) {
@@ -844,7 +741,6 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden select-none bg-[#080a0f]">
-      {/* 3D Canvas */}
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
 
       {/* Header */}
@@ -863,7 +759,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Quick Toolbar */}
+        {/* Toolbar */}
         <div className="flex items-center space-x-2 pointer-events-auto">
           <button
             onClick={() => {
@@ -872,7 +768,7 @@ export default function App() {
               playTypewriterClick(0.7);
             }}
             className="glass-panel glass-btn p-3 rounded-xl text-slate-200 hover:text-amber-300"
-            title="Alternar Horário do Dia"
+            title="Alternar Atmosfera"
           >
             {timeOfDay === 'golden' ? <Sun className="w-5 h-5 text-amber-400" /> : timeOfDay === 'night' ? <Moon className="w-5 h-5 text-indigo-400" /> : <Sun className="w-5 h-5 text-sky-400" />}
           </button>
@@ -880,26 +776,29 @@ export default function App() {
           <button
             onClick={() => toggleOceanSound()}
             className="glass-panel glass-btn p-3 rounded-xl text-slate-200 hover:text-cyan-300"
-            title={isOceanPlaying ? "Desativar Maré" : "Ouvir Mar de Copacabana"}
+            title={isOceanPlaying ? "Desativar Maré" : "Ouvir Mar"}
           >
             {isOceanPlaying ? <Volume2 className="w-5 h-5 text-cyan-300 animate-pulse" /> : <VolumeX className="w-5 h-5 text-slate-400" />}
           </button>
         </div>
       </header>
 
-      {/* VR Button Mount Target */}
+      {/* Botão VR */}
       <div ref={vrButtonContainerRef} className="absolute bottom-6 right-6 z-20 pointer-events-auto" />
 
-      {/* Modais de desktop mantidos quando fora do VR */}
+      {/* Modal Desktop da Máquina */}
       {activeModal === 'typewriter' && (
         <div className="fixed inset-0 bg-black/75 z-40 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel w-full max-w-xl rounded-3xl p-6 relative border border-amber-400/30">
             <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-6 h-6" />
             </button>
-            <h3 className="text-lg font-serif-vintage text-amber-200 font-bold mb-3">
-              Máquina de Escrever Olympia
-            </h3>
+            <div className="flex items-center space-x-3 mb-3">
+              <Keyboard className="w-5 h-5 text-amber-400" />
+              <h3 className="text-lg font-serif-vintage text-amber-200 font-bold">
+                Máquina de Escrever Olympia
+              </h3>
+            </div>
             <textarea
               rows={5}
               value={typedText}
@@ -908,7 +807,7 @@ export default function App() {
                 playTypewriterClick(0.8);
               }}
               className="w-full bg-[#f5edd6] text-stone-900 rounded-xl p-4 font-mono-type text-sm outline-none"
-              placeholder="Digite suas ideias ou pensamentos de Clarice..."
+              placeholder="Digite seus pensamentos..."
             />
           </div>
         </div>
