@@ -46,35 +46,35 @@ export function createWainscotingAndWallArt(interactiveList?: THREE.Object3D[]):
 }
 
 /* ---------------- 2. Sofá Modernista de Linho ---------------- */
+/* ---------------- 2. Sofá Modernista de Linho (Encostado na Parede Esquerda) ---------------- */
 export function createModernistSofa(interactiveList?: THREE.Object3D[]): THREE.Group {
   const sofaGroup = new THREE.Group();
 
   const fabricMat = new THREE.MeshStandardMaterial({
-    color: 0xd7cfc2, // Linho cru vintage
+    color: 0xd7cfc2,
     roughness: 0.85,
     metalness: 0.02
   });
 
   const woodBaseMat = new THREE.MeshStandardMaterial({
-    color: 0x472d1f, // Jacarandá escuro
+    color: 0x472d1f,
     roughness: 0.45
   });
 
-  // Base do Sofá
-  const baseGeo = new THREE.BoxGeometry(1.6, 0.12, 0.85);
-  const base = new THREE.Mesh(baseGeo, woodBaseMat);
-  base.position.set(-1.85, 0.18, 0.2);
+  // Base do Sofá (alinhada na parede esquerda x = -2.0)
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 1.6), woodBaseMat);
+  base.position.set(-2.0, 0.18, 0.1);
   base.castShadow = true;
   base.receiveShadow = true;
   sofaGroup.add(base);
 
-  // Pés cônicos de madeira
+  // Pés
   const legGeo = new THREE.CylinderGeometry(0.025, 0.018, 0.18, 16);
   const legPositions = [
-    [-2.55, 0.09, 0.55],
-    [-1.15, 0.09, 0.55],
-    [-2.55, 0.09, -0.15],
-    [-1.15, 0.09, -0.15]
+    [-2.3, 0.09, 0.75],
+    [-1.7, 0.09, 0.75],
+    [-2.3, 0.09, -0.55],
+    [-1.7, 0.09, -0.55]
   ];
   legPositions.forEach(([x, y, z]) => {
     const leg = new THREE.Mesh(legGeo, woodBaseMat);
@@ -84,41 +84,30 @@ export function createModernistSofa(interactiveList?: THREE.Object3D[]): THREE.G
   });
 
   // Assento almofadado
-  const cushionGeo = new THREE.BoxGeometry(1.56, 0.22, 0.82);
-  const cushion = new THREE.Mesh(cushionGeo, fabricMat);
-  cushion.position.set(-1.85, 0.35, 0.2);
+  const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.22, 1.56), fabricMat);
+  cushion.position.set(-2.0, 0.35, 0.1);
   cushion.castShadow = true;
   cushion.receiveShadow = true;
   sofaGroup.add(cushion);
 
-  // Encosto
-  const backrestGeo = new THREE.BoxGeometry(1.56, 0.42, 0.16);
-  const backrest = new THREE.Mesh(backrestGeo, fabricMat);
-  backrest.position.set(-1.85, 0.62, -0.14);
+  // Encosto (costas encostadas na parede esquerda em x = -2.44)
+  const backrest = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.44, 1.56), fabricMat);
+  backrest.position.set(-2.44, 0.62, 0.1);
   backrest.castShadow = true;
   sofaGroup.add(backrest);
 
-  // Braços do sofá
-  const armGeo = new THREE.BoxGeometry(0.14, 0.32, 0.84);
-  const armLeft = new THREE.Mesh(armGeo, fabricMat);
-  armLeft.position.set(-2.64, 0.45, 0.2);
-  armLeft.castShadow = true;
-  sofaGroup.add(armLeft);
+  // Braço frontal
+  const armFront = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.32, 0.14), fabricMat);
+  armFront.position.set(-2.0, 0.45, 0.85);
+  armFront.castShadow = true;
+  sofaGroup.add(armFront);
 
-  const armRight = new THREE.Mesh(armGeo, fabricMat);
-  armRight.position.set(-1.06, 0.45, 0.2);
-  armRight.castShadow = true;
-  sofaGroup.add(armRight);
+  // Braço de trás
+  const armBack = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.32, 0.14), fabricMat);
+  armBack.position.set(-2.0, 0.45, -0.65);
+  armBack.castShadow = true;
+  sofaGroup.add(armBack);
 
-  // Almofadas decorativas
-  const pillowMat = new THREE.MeshStandardMaterial({ color: 0x857564, roughness: 0.9 });
-  const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.3, 0.1), pillowMat);
-  pillow.position.set(-1.22, 0.52, -0.05);
-  pillow.rotation.y = -Math.PI / 8;
-  pillow.castShadow = true;
-  sofaGroup.add(pillow);
-
-  // Identificação para interação
   sofaGroup.userData = { id: 'sofa', title: 'Sofá de Linho de Clarice' };
   interactiveList?.push(sofaGroup);
 
