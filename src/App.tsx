@@ -19,9 +19,7 @@ import {
   createWainscotingAndWallArt,
   createModernistSofa,
   createStripedRug,
-  createSlattedCoffeeTable,
   createSideTableAndRotaryPhone,
-  createDiningNookAndGreenLamp,
   createBookcaseCeramicsAndRecords,
   createDeskBookStacksAndCoffee
 } from './furniture3D.ts';
@@ -37,7 +35,7 @@ const FAMOUS_QUOTES = [
   "Escrevo como se fosse para salvar a vida de alguém. Provavelmente a minha própria.",
   "O que me acalma é o mistério. É não ter certeza de nada.",
   "Liberdade é pouco. O que eu desejo ainda não tem nome.",
-  "Que ninguém se根e, só se consegue a simplicidade através de muito trabalho.",
+  "Que ninguém se engane, só se consegue a simplicidade através de muito trabalho.",
   "Renda-se, como eu me rendi. Mergulhe no que você não conhece como eu mergulhei.",
   "Eu não sou daquelas que se deixam vencer pela rotina. Eu a invento.",
   "A palavra é minha quarta dimensão. Não quero a palavra pronta, quero o sopro antes dela nascer.",
@@ -526,7 +524,7 @@ export default function App() {
       vrButtonContainerRef.current.appendChild(button);
     }
 
-    /* Lighting */
+    /* Lighting Principal */
     const ambient = new THREE.AmbientLight(0xdce7f5, 0.55);
     scene.add(ambient);
     ambientLightRef.current = ambient;
@@ -571,7 +569,7 @@ export default function App() {
     scene.add(windowBackdrop);
     interactiveList.push(windowBackdrop);
 
-    /* Desk Assembly */
+    /* Mesa Principal */
     const deskGroup = new THREE.Group();
     const woodDeskMat = new THREE.MeshStandardMaterial({ color: 0x472d1f, roughness: 0.4 });
     const deskTop = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.08, 1.15), woodDeskMat);
@@ -580,27 +578,20 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    /* -------------------------------------------------------------
-       1. MÁQUINA DE ESCREVER GLB (typewriter.glb)
-       Auto-calibrada via Box3 para 0.36m (tamanho exato da original)
-    -------------------------------------------------------------- */
+    /* 1. MÁQUINA DE ESCREVER GLB */
     gltfLoader.load(
       '/models/typewriter.glb',
       (gltf) => {
         const typewriter = gltf.scene;
-
-        // Medição e calibração automática da escala
         const bbox = new THREE.Box3().setFromObject(typewriter);
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        // A largura original era 0.36m
         const targetWidth = 0.36;
         const currentWidth = size.x > 0 ? size.x : 1;
         const computedScale = targetWidth / currentWidth;
         typewriter.scale.set(computedScale, computedScale, computedScale);
 
-        // Reposiciona o pivô no tampo da mesa (y = 0.99)
         const updatedBox = new THREE.Box3().setFromObject(typewriter);
         typewriter.position.set(0, 0.99 - updatedBox.min.y, -0.3);
         typewriter.rotation.y = 0;
@@ -622,40 +613,31 @@ export default function App() {
 
     scene.add(deskGroup);
 
-    /* Móveis Autênticos (SEM a cadeira procedural antiga) */
+    /* Móveis Autênticos Mantidos */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createStripedRug());
     scene.add(createModernistSofa(interactiveList));
-    scene.add(createSlattedCoffeeTable(interactiveList));
     scene.add(createSideTableAndRotaryPhone(interactiveList));
-    scene.add(createDiningNookAndGreenLamp(interactiveList));
     scene.add(createBookcaseCeramicsAndRecords());
     deskGroup.add(createDeskBookStacksAndCoffee());
 
-    /* -------------------------------------------------------------
-       2. CADEIRA DE BALANÇO GLB (rocking_chair.glb)
-       Auto-calibrada via Box3 para 0.95m de altura (tocando o chão)
-    -------------------------------------------------------------- */
+    /* 2. CADEIRA DE BALANÇO GLB */
     gltfLoader.load(
       '/models/rocking_chair.glb',
       (gltf) => {
         const chair = gltf.scene;
-
-        // Medição e calibração automática da escala
         const bbox = new THREE.Box3().setFromObject(chair);
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        // A altura padrão da Thonet é de aproximadamente 0.95m
         const targetHeight = 0.95;
         const currentHeight = size.y > 0 ? size.y : 1;
         const computedScale = targetHeight / currentHeight;
         chair.scale.set(computedScale, computedScale, computedScale);
 
-        // Reposiciona tocando exatamente o chão (y = 0)
         const updatedBox = new THREE.Box3().setFromObject(chair);
         chair.position.set(-0.8, -updatedBox.min.y, 0.45);
-        chair.rotation.y = Math.PI / 4; // Voltada a 45 graus para o centro
+        chair.rotation.y = Math.PI / 4;
 
         chair.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -672,14 +654,13 @@ export default function App() {
       (error) => console.error('Erro ao carregar /models/rocking_chair.glb:', error)
     );
 
-    /* Hotspot markers */
+    /* Hotspot markers Essenciais (Sem a mesa de centro removida) */
     const markers = [
       { id: 'typewriter', pos: new THREE.Vector3(0, 1.25, -0.2), color: 0xf59e0b },
       { id: 'window', pos: new THREE.Vector3(0, 2.2, -2.4), color: 0x38bdf8 },
       { id: 'rocking_chair', pos: new THREE.Vector3(-0.8, 0.95, 0.45), color: 0xeab308 },
       { id: 'sofa', pos: new THREE.Vector3(-2.0, 0.85, 0.2), color: 0x10b981 },
-      { id: 'rotary_phone', pos: new THREE.Vector3(-2.05, 0.75, -0.95), color: 0xef4444 },
-      { id: 'coffee_table', pos: new THREE.Vector3(-1.25, 0.55, 0.45), color: 0x06b6d4 }
+      { id: 'rotary_phone', pos: new THREE.Vector3(-2.05, 0.75, -0.95), color: 0xef4444 }
     ];
 
     const rings: THREE.Mesh[] = [];
@@ -729,7 +710,7 @@ export default function App() {
     };
     window.addEventListener('resize', onWindowResize);
 
-    /* ---------------- Snap Turn & Loop ---------------- */
+    /* Snap Turn & Loop */
     const clock = new THREE.Clock();
     let snapCooldown = false;
 
