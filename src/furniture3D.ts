@@ -247,6 +247,7 @@ export function createBookcaseCeramicsAndRecords(): THREE.Group {
 }
 
 /* ---------------- 5. Livros e Xícara sobre a Mesa Principal ---------------- */
+/* ---------------- 5. Livros/Manuscritos sobre a Mesa Principal ---------------- */
 export function createDeskBookStacksAndCoffee(): THREE.Group {
   const group = new THREE.Group();
 
@@ -263,23 +264,7 @@ export function createDeskBookStacksAndCoffee(): THREE.Group {
     group.add(book);
   }
 
-  // Pires e Xícara de Café
-  const ceramicMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
-  const coffeeLiquidMat = new THREE.MeshStandardMaterial({ color: 0x1f140e, roughness: 0.15 });
-
-  const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.012, 24), ceramicMat);
-  saucer.position.set(0.65, 0.996, -0.25);
-  saucer.castShadow = true;
-  group.add(saucer);
-
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.032, 0.055, 24), ceramicMat);
-  cup.position.set(0.65, 1.03, -0.25);
-  cup.castShadow = true;
-  group.add(cup);
-
-  const coffee = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.005, 24), coffeeLiquidMat);
-  coffee.position.set(0.65, 1.052, -0.25);
-  group.add(coffee);
+  // (Pires e xícara procedurais antigos removidos para dar lugar a xicara.glb)
 
   return group;
 }
