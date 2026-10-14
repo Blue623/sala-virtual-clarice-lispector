@@ -1,0 +1,6 @@
+{
+  "name": "O Gabinete de Clarice Lispector — Metaverso Literário",
+  "description": "Experiência imersiva WebXR 3D no lendário gabinete de Clarice Lispector no Leme, com máquina de escrever sonora, obras, memórias e vista para o mar de Copacabana.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
