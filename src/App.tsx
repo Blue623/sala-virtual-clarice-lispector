@@ -542,8 +542,8 @@ export default function App() {
     ambientLightRef.current = ambient;
 
     const deskSpot = new THREE.SpotLight(0xffdfa8, 2.8, 6, Math.PI / 3, 0.45, 1.2);
-    deskSpot.position.set(-0.45, 1.75, -0.25);
-    deskSpot.target.position.set(0, 0.9, -0.3);
+    deskSpot.position.set(-0.3, 1.6, -0.6);
+    deskSpot.target.position.set(0, 0.76, -0.8);
     deskSpot.castShadow = true;
     deskSpot.shadow.mapSize.width = 1024;
     deskSpot.shadow.mapSize.height = 1024;
@@ -558,7 +558,7 @@ export default function App() {
     scene.add(windowLight.target);
     windowLightRef.current = windowLight;
 
-    /* ---------------- Paredes e Piso Intimista ---------------- */
+    /* ---------------- Paredes e Piso ---------------- */
     const roomWidth = 5.2;
     const roomDepth = 4.6;
     const wallHeight = 3.2;
@@ -627,31 +627,33 @@ export default function App() {
     scene.add(windowBackdrop);
     interactiveList.push(windowBackdrop);
 
-    /* Grupo de Objetos da Mesa */
-    const deskGroup = new THREE.Group();
-    scene.add(deskGroup);
-
     /* -------------------------------------------------------------
-       1. NOVA MESA DE MADEIRA CENTRAL (wood_table.glb)
-       Substitui a mesa procedural de cubos
+       1. MESA DE MADEIRA CENTRAL (wood_table.glb) - CALIBRAÇÃO REAL
+       Largura de 1.60m ao longo do eixo X, altura de 0.76m
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/wood_table.glb',
       (gltf) => {
         const table = gltf.scene;
+
+        // Se o modelo veio rotacionado no eixo Z, gira 90 graus para alinhar ao longo de X
+        table.rotation.y = Math.PI / 2;
+        table.updateMatrixWorld(true);
+
         const bbox = new THREE.Box3().setFromObject(table);
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        // A mesa original tinha aproximadamente 2.10m de largura
-        const targetWidth = 2.10;
-        const currentWidth = size.x > 0 ? size.x : 1;
-        const computedScale = targetWidth / currentWidth;
+        // Escala calculada pela altura padrão de escrivaninha (0.76m)
+        const targetHeight = 0.76;
+        const currentHeight = size.y > 0 ? size.y : 1;
+        const computedScale = targetHeight / currentHeight;
         table.scale.set(computedScale, computedScale, computedScale);
 
-        // Assenta os pés da mesa diretamente no chão (y = 0)
+        // Assenta os pés no chão (y = 0) e centraliza em frente à janela (z = -0.8)
+        table.updateMatrixWorld(true);
         const updatedBox = new THREE.Box3().setFromObject(table);
-        table.position.set(0, -updatedBox.min.y, -0.3);
+        table.position.set(0, -updatedBox.min.y, -0.8);
 
         table.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -661,14 +663,15 @@ export default function App() {
         });
 
         table.userData = { id: 'wood_table', title: 'Mesa de Madeira de Clarice' };
-        deskGroup.add(table);
+        scene.add(table);
       },
       undefined,
       (error) => console.error('Erro ao carregar /models/wood_table.glb:', error)
     );
 
     /* -------------------------------------------------------------
-       2. MÁQUINA DE ESCREVER GLB NA MESA CENTRAL (typewriter.glb)
+       2. MÁQUINA DE ESCREVER NA MESA (typewriter.glb)
+       Posicionada no centro do tampo da mesa (y = 0.76, z = -0.75)
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/typewriter.glb',
@@ -684,7 +687,7 @@ export default function App() {
         typewriter.scale.set(computedScale, computedScale, computedScale);
 
         const updatedBox = new THREE.Box3().setFromObject(typewriter);
-        typewriter.position.set(0, 0.99 - updatedBox.min.y, -0.3);
+        typewriter.position.set(0, 0.76 - updatedBox.min.y, -0.75);
         typewriter.rotation.y = 0;
 
         typewriter.traverse((child) => {
@@ -696,15 +699,14 @@ export default function App() {
 
         typewriter.userData = { id: 'typewriter', title: 'Máquina de Escrever Olympia' };
         interactiveList.push(typewriter);
-        deskGroup.add(typewriter);
+        scene.add(typewriter);
       },
       undefined,
       (error) => console.error('Erro ao carregar /models/typewriter.glb na mesa:', error)
     );
 
     /* -------------------------------------------------------------
-       3. NOVA XÍCARA GLB SOBRE A MESA (xicara.glb)
-       Substitui a xícara procedural anterior
+       3. XÍCARA DE CAFÉ SOBRE A MESA (xicara.glb)
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/xicara.glb',
@@ -714,15 +716,13 @@ export default function App() {
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        // Largura ideal de uma xícara com pires: ~0.14m (14 cm)
-        const targetWidth = 0.14;
+        const targetWidth = 0.12;
         const currentWidth = size.x > 0 ? size.x : 1;
         const computedScale = targetWidth / currentWidth;
         cup.scale.set(computedScale, computedScale, computedScale);
 
-        // Posiciona no lado direito da mesa (x = 0.65, y = 0.99, z = -0.25)
         const updatedBox = new THREE.Box3().setFromObject(cup);
-        cup.position.set(0.65, 0.99 - updatedBox.min.y, -0.25);
+        cup.position.set(0.55, 0.76 - updatedBox.min.y, -0.75);
 
         cup.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -733,34 +733,38 @@ export default function App() {
 
         cup.userData = { id: 'xicara', title: 'Xícara de Café' };
         interactiveList.push(cup);
-        deskGroup.add(cup);
+        scene.add(cup);
       },
       undefined,
       (error) => console.error('Erro ao carregar /models/xicara.glb:', error)
     );
 
     /* -------------------------------------------------------------
-       4. NOVA ESTANTE DE LIVROS GLB NA PAREDE (bookshelf.glb)
-       Substitui a estante procedural da parede direita
+       4. ESTANTE DE LIVROS NA PAREDE DIREITA (bookshelf.glb)
+       Encostada na parede leste e virada para o centro da sala (-X)
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/bookshelf.glb',
       (gltf) => {
         const shelf = gltf.scene;
+
+        // Gira para que a frente da estante aponte para o interior da sala (-X)
+        shelf.rotation.y = Math.PI / 2;
+        shelf.updateMatrixWorld(true);
+
         const bbox = new THREE.Box3().setFromObject(shelf);
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        // Altura padrão de estante: ~2.10m
-        const targetHeight = 2.10;
+        const targetHeight = 2.0;
         const currentHeight = size.y > 0 ? size.y : 1;
         const computedScale = targetHeight / currentHeight;
         shelf.scale.set(computedScale, computedScale, computedScale);
 
-        // Encostada na parede lateral direita (x = 2.35, z = -0.3)
+        shelf.updateMatrixWorld(true);
         const updatedBox = new THREE.Box3().setFromObject(shelf);
-        shelf.position.set(2.35, -updatedBox.min.y, -0.3);
-        shelf.rotation.y = -Math.PI / 2; // Voltada para o interior da sala
+        // Encostada rente à parede direita (x = 2.25)
+        shelf.position.set(2.25, -updatedBox.min.y, -0.3);
 
         shelf.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -778,7 +782,7 @@ export default function App() {
     );
 
     /* -------------------------------------------------------------
-       5. MÁQUINA DE ESCREVER GLB NO SOFÁ
+       5. MÁQUINA DE ESCREVER NO SOFÁ (NO COLO DE CLARICE)
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/typewriter.glb',
@@ -788,15 +792,15 @@ export default function App() {
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        const targetWidth = 0.34;
+        const targetWidth = 0.32;
         const currentWidth = size.x > 0 ? size.x : 1;
         const computedScale = targetWidth / currentWidth;
         sofaTypewriter.scale.set(computedScale, computedScale, computedScale);
 
         const updatedBox = new THREE.Box3().setFromObject(sofaTypewriter);
-        sofaTypewriter.position.set(-1.85, 0.52 - updatedBox.min.y, 0.22);
-        sofaTypewriter.rotation.y = Math.PI / 12;
-        sofaTypewriter.rotation.x = 0.05;
+        // Em cima do assento do sofá encostado na parede
+        sofaTypewriter.position.set(-2.0, 0.48 - updatedBox.min.y, 0.15);
+        sofaTypewriter.rotation.y = Math.PI / 2 + 0.15; // Virada para o centro
 
         sofaTypewriter.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -814,7 +818,8 @@ export default function App() {
     );
 
     /* -------------------------------------------------------------
-       6. CADEIRA DE BALANÇO GLB (rocking_chair.glb)
+       6. CADEIRA DE BALANÇO THONET (rocking_chair.glb)
+       Posicionada livremente ao lado da escrivaninha (x = 0.95, z = -0.4)
     -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/rocking_chair.glb',
@@ -830,8 +835,8 @@ export default function App() {
         chair.scale.set(computedScale, computedScale, computedScale);
 
         const updatedBox = new THREE.Box3().setFromObject(chair);
-        chair.position.set(-0.8, -updatedBox.min.y, 0.45);
-        chair.rotation.y = Math.PI / 4;
+        chair.position.set(0.95, -updatedBox.min.y, -0.4);
+        chair.rotation.y = -Math.PI / 6;
 
         chair.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -848,21 +853,21 @@ export default function App() {
       (error) => console.error('Erro ao carregar /models/rocking_chair.glb:', error)
     );
 
-    /* Elementos Autênticos Mantidos */
+    /* Móveis Autênticos Fixos */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createModernistSofa(interactiveList));
     scene.add(createSideTableAndRotaryPhone(interactiveList));
-    deskGroup.add(createDeskBookStacksAndCoffee());
+    scene.add(createDeskBookStacksAndCoffee());
 
-    /* Hotspot markers */
+    /* Hotspot markers reposicionados */
     const markers = [
-      { id: 'typewriter', pos: new THREE.Vector3(0, 1.25, -0.2), color: 0xf59e0b },
-      { id: 'xicara', pos: new THREE.Vector3(0.65, 1.15, -0.25), color: 0xf43f5e },
+      { id: 'typewriter', pos: new THREE.Vector3(0, 0.95, -0.75), color: 0xf59e0b },
+      { id: 'xicara', pos: new THREE.Vector3(0.55, 0.95, -0.75), color: 0xf43f5e },
       { id: 'window', pos: new THREE.Vector3(0, 2.2, -2.4), color: 0x38bdf8 },
-      { id: 'rocking_chair', pos: new THREE.Vector3(-0.8, 0.95, 0.45), color: 0xeab308 },
-      { id: 'sofa_typewriter', pos: new THREE.Vector3(-1.85, 0.85, 0.22), color: 0x10b981 },
+      { id: 'rocking_chair', pos: new THREE.Vector3(0.95, 0.95, -0.4), color: 0xeab308 },
+      { id: 'sofa_typewriter', pos: new THREE.Vector3(-2.0, 0.75, 0.15), color: 0x10b981 },
       { id: 'rotary_phone', pos: new THREE.Vector3(-2.05, 0.75, -0.95), color: 0xef4444 },
-      { id: 'bookshelf', pos: new THREE.Vector3(2.1, 1.5, -0.3), color: 0xa855f7 }
+      { id: 'bookshelf', pos: new THREE.Vector3(2.1, 1.4, -0.3), color: 0xa855f7 }
     ];
 
     const rings: THREE.Mesh[] = [];
