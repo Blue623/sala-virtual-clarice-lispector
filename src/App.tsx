@@ -37,7 +37,7 @@ const FAMOUS_QUOTES = [
   "Escrevo como se fosse para salvar a vida de alguém. Provavelmente a minha própria.",
   "O que me acalma é o mistério. É não ter certeza de nada.",
   "Liberdade é pouco. O que eu desejo ainda não tem nome.",
-  "Que ninguém se engane, só se consegue a simplicidade através de muito trabalho.",
+  "Que ninguém se根e, só se consegue a simplicidade através de muito trabalho.",
   "Renda-se, como eu me rendi. Mergulhe no que você não conhece como eu mergulhei.",
   "Eu não sou daquelas que se deixam vencer pela rotina. Eu a invento.",
   "A palavra é minha quarta dimensão. Não quero a palavra pronta, quero o sopro antes dela nascer.",
@@ -82,7 +82,6 @@ export default function App() {
   // Teleportation and VR Rig Refs
   const cameraGroupRef = useRef<THREE.Group | null>(null);
   const floorRef = useRef<THREE.Mesh | null>(null);
-  const teleportMarkerRef = useRef<THREE.Mesh | null>(null);
 
   /* ---------------- Audio Synthesis ---------------- */
   const initAudio = useCallback(() => {
@@ -179,7 +178,7 @@ export default function App() {
     } catch (err) {
       console.warn('Ocean sound init error:', err);
     }
-  }, [initAudio, isOceanPlaying, soundVolume]);
+  }, [initAudio, soundVolume, isOceanPlaying]);
 
   const playRotaryDialSound = useCallback(() => {
     try {
@@ -228,19 +227,16 @@ export default function App() {
     }
   }, [initAudio, soundVolume]);
 
-  /* ---------------- Feedback Háptico para Meta Quest ---------------- */
   const triggerHapticFeedback = (controller: any, intensity = 0.6, duration = 40) => {
     if (controller?.gamepad?.hapticActuators && controller.gamepad.hapticActuators[0]) {
       controller.gamepad.hapticActuators[0].pulse(intensity, duration);
     }
   };
 
-  /* ---------------- Render Window ---------------- */
   const renderWindowCanvas = useCallback((mode: 'golden' | 'night' | 'day') => {
     return renderPhotographicWindow('copacabana_view', mode, null);
   }, []);
 
-  /* ---------------- Painel Espacial 3D (Spatial UI) ---------------- */
   const updateSpatialVRPanel = useCallback((title: string, lines: string[]) => {
     if (!spatialUIPanelRef.current) return;
     const canvas = document.createElement('canvas');
@@ -289,7 +285,6 @@ export default function App() {
     if (spatialCloseBtnRef.current) spatialCloseBtnRef.current.visible = true;
   }, []);
 
-  /* ---------------- Trigger Hotspot Modal ---------------- */
   const handleHotspotTrigger = useCallback((id: string, controller?: any) => {
     if (controller) triggerHapticFeedback(controller, 0.8, 50);
 
@@ -343,7 +338,6 @@ export default function App() {
     setActiveModal(id);
   }, [playTypewriterClick, playRotaryDialSound, playRockingCreakSound, toggleOceanSound, updateSpatialVRPanel, quoteIndex]);
 
-  /* ---------------- Update Lighting on TimeOfDay change ---------------- */
   useEffect(() => {
     if (!deskSpotRef.current || !windowLightRef.current || !ambientLightRef.current || !windowTextureRef.current) return;
 
@@ -377,7 +371,6 @@ export default function App() {
     dustSystemRef.current?.setTimeOfDay(timeOfDay);
   }, [timeOfDay, renderWindowCanvas]);
 
-  /* ---------------- Three.js Scene Setup ---------------- */
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -391,7 +384,6 @@ export default function App() {
     camera.position.set(0, 1.45, 1.85);
     cameraRef.current = camera;
 
-    // Rig para compatibilidade entre Desktop e WebXR
     const cameraGroup = new THREE.Group();
     cameraGroup.position.set(0, 0, 0);
     cameraGroup.add(camera);
@@ -408,7 +400,6 @@ export default function App() {
 
     container.appendChild(renderer.domElement);
 
-    // Orbit Controls (Desktop)
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
@@ -419,15 +410,6 @@ export default function App() {
     interactiveObjectsRef.current = interactiveList;
 
     const gltfLoader = new GLTFLoader();
-
-    /* ---------------- Teleport Marker (Chão) ---------------- */
-    const markerGeo = new THREE.RingGeometry(0.18, 0.22, 32);
-    const markerMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
-    const teleportMarker = new THREE.Mesh(markerGeo, markerMat);
-    teleportMarker.rotation.x = -Math.PI / 2;
-    teleportMarker.visible = false;
-    scene.add(teleportMarker);
-    teleportMarkerRef.current = teleportMarker;
 
     /* ---------------- Controles WebXR e Raycaster ---------------- */
     const controller1 = renderer.xr.getController(0);
@@ -451,7 +433,6 @@ export default function App() {
       vrRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
       vrRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-      // 1. Fechar painel 3D
       const uiIntersects = vrRaycaster.intersectObjects([spatialCloseBtnRef.current!].filter(Boolean), true);
       if (uiIntersects.length > 0) {
         if (spatialUIPanelRef.current) spatialUIPanelRef.current.visible = false;
@@ -460,7 +441,6 @@ export default function App() {
         return;
       }
 
-      // 2. Objetos interativos
       const objectIntersects = vrRaycaster.intersectObjects(interactiveObjectsRef.current, true);
       if (objectIntersects.length > 0) {
         let root: THREE.Object3D | null = objectIntersects[0].object;
@@ -473,7 +453,6 @@ export default function App() {
         }
       }
 
-      // 3. Teletransporte no chão
       if (floorRef.current) {
         const floorIntersects = vrRaycaster.intersectObject(floorRef.current);
         if (floorIntersects.length > 0 && cameraGroupRef.current) {
@@ -601,14 +580,30 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    /* 1. MÁQUINA DE ESCREVER GLB DO SKETCHFAB */
+    /* -------------------------------------------------------------
+       1. MÁQUINA DE ESCREVER GLB (typewriter.glb)
+       Auto-calibrada via Box3 para 0.36m (tamanho exato da original)
+    -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/typewriter.glb',
       (gltf) => {
         const typewriter = gltf.scene;
-        typewriter.position.set(0, 0.99, -0.3);
+
+        // Medição e calibração automática da escala
+        const bbox = new THREE.Box3().setFromObject(typewriter);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+
+        // A largura original era 0.36m
+        const targetWidth = 0.36;
+        const currentWidth = size.x > 0 ? size.x : 1;
+        const computedScale = targetWidth / currentWidth;
+        typewriter.scale.set(computedScale, computedScale, computedScale);
+
+        // Reposiciona o pivô no tampo da mesa (y = 0.99)
+        const updatedBox = new THREE.Box3().setFromObject(typewriter);
+        typewriter.position.set(0, 0.99 - updatedBox.min.y, -0.3);
         typewriter.rotation.y = 0;
-        typewriter.scale.set(1, 1, 1);
 
         typewriter.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -622,12 +617,12 @@ export default function App() {
         deskGroup.add(typewriter);
       },
       undefined,
-      (error) => console.error('Erro ao carregar /models/maquina.glb:', error)
+      (error) => console.error('Erro ao carregar /models/typewriter.glb:', error)
     );
 
     scene.add(deskGroup);
 
-    /* Móveis Autênticos */
+    /* Móveis Autênticos (SEM a cadeira procedural antiga) */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createStripedRug());
     scene.add(createModernistSofa(interactiveList));
@@ -637,14 +632,30 @@ export default function App() {
     scene.add(createBookcaseCeramicsAndRecords());
     deskGroup.add(createDeskBookStacksAndCoffee());
 
-    /* 2. CADEIRA DE BALANÇO GLB DO SKETCHFAB */
+    /* -------------------------------------------------------------
+       2. CADEIRA DE BALANÇO GLB (rocking_chair.glb)
+       Auto-calibrada via Box3 para 0.95m de altura (tocando o chão)
+    -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/rocking_chair.glb',
       (gltf) => {
         const chair = gltf.scene;
-        chair.position.set(-0.8, 0, 0.45);
-        chair.rotation.y = Math.PI / 4;
-        chair.scale.set(1, 1, 1);
+
+        // Medição e calibração automática da escala
+        const bbox = new THREE.Box3().setFromObject(chair);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+
+        // A altura padrão da Thonet é de aproximadamente 0.95m
+        const targetHeight = 0.95;
+        const currentHeight = size.y > 0 ? size.y : 1;
+        const computedScale = targetHeight / currentHeight;
+        chair.scale.set(computedScale, computedScale, computedScale);
+
+        // Reposiciona tocando exatamente o chão (y = 0)
+        const updatedBox = new THREE.Box3().setFromObject(chair);
+        chair.position.set(-0.8, -updatedBox.min.y, 0.45);
+        chair.rotation.y = Math.PI / 4; // Voltada a 45 graus para o centro
 
         chair.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -658,7 +669,7 @@ export default function App() {
         scene.add(chair);
       },
       undefined,
-      (error) => console.error('Erro ao carregar /models/cadeira.glb:', error)
+      (error) => console.error('Erro ao carregar /models/rocking_chair.glb:', error)
     );
 
     /* Hotspot markers */
@@ -725,19 +736,16 @@ export default function App() {
     renderer.setAnimationLoop(() => {
       const time = clock.getElapsedTime();
 
-      // Rotação dos anéis para a visão do jogador
       hotspotRingsRef.current.forEach((r) => {
         r.lookAt(camera.position);
         const scale = 1 + Math.sin(time * 3.0) * 0.08;
         r.scale.set(scale, scale, scale);
       });
 
-      // Painel 3D virado para a cabeça do jogador
       if (spatialUIPanelRef.current && spatialUIPanelRef.current.visible) {
         spatialUIPanelRef.current.lookAt(camera.position);
       }
 
-      // Snap Turn no Controle Direito
       const session = renderer.xr.getSession();
       if (session) {
         for (const source of session.inputSources) {
