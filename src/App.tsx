@@ -524,7 +524,7 @@ export default function App() {
     }
 
     /* Lighting Principal */
-    const ambient = new THREE.AmbientLight(0xdce7f5, 0.55);
+    const ambient = new THREE.AmbientLight(0xdce7f5, 0.6);
     scene.add(ambient);
     ambientLightRef.current = ambient;
 
@@ -545,16 +545,69 @@ export default function App() {
     scene.add(windowLight.target);
     windowLightRef.current = windowLight;
 
-    /* Piso */
-    const floorGeo = new THREE.PlaneGeometry(8, 8);
+    /* -------------------------------------------------------------
+       PAREDES E PISO (SALA MENOR: LARGURA 5.2m, PROFUNDIDADE 4.6m)
+    -------------------------------------------------------------- */
+    const roomWidth = 5.2;
+    const roomDepth = 4.6;
+    const wallHeight = 3.2;
+
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0xdfd9ce,
+      roughness: 0.85,
+      metalness: 0.05
+    });
+
+    // 1. Piso Intimista
+    const floorGeo = new THREE.PlaneGeometry(roomWidth, roomDepth);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d271d, roughness: 0.65, metalness: 0.1 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, 0, -0.3);
     floor.receiveShadow = true;
     scene.add(floor);
     floorRef.current = floor;
 
-    /* Janela */
+    // 2. Parede Esquerda (Oeste - atrás do sofá)
+    const leftWallGeo = new THREE.BoxGeometry(0.12, wallHeight, roomDepth);
+    const leftWall = new THREE.Mesh(leftWallGeo, wallMat);
+    leftWall.position.set(-roomWidth / 2, wallHeight / 2, -0.3);
+    leftWall.receiveShadow = true;
+    scene.add(leftWall);
+
+    // 3. Parede Direita (Leste - fechando a lateral direita)
+    const rightWallGeo = new THREE.BoxGeometry(0.12, wallHeight, roomDepth);
+    const rightWall = new THREE.Mesh(rightWallGeo, wallMat);
+    rightWall.position.set(roomWidth / 2, wallHeight / 2, -0.3);
+    rightWall.receiveShadow = true;
+    scene.add(rightWall);
+
+    // 4. Parede dos Fundos (Norte - em volta da janela)
+    const backWallMat = wallMat.clone();
+    const backWallTop = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, 0.7, 0.12), backWallMat);
+    backWallTop.position.set(0, 2.85, -2.6);
+    scene.add(backWallTop);
+
+    const backWallBottom = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, 1.05, 0.12), backWallMat);
+    backWallBottom.position.set(0, 0.52, -2.6);
+    scene.add(backWallBottom);
+
+    const backWallLeft = new THREE.Mesh(new THREE.BoxGeometry((roomWidth - 2.7) / 2, 1.6, 0.12), backWallMat);
+    backWallLeft.position.set(-((roomWidth - 2.7) / 4 + 1.35), 1.85, -2.6);
+    scene.add(backWallLeft);
+
+    const backWallRight = new THREE.Mesh(new THREE.BoxGeometry((roomWidth - 2.7) / 2, 1.6, 0.12), backWallMat);
+    backWallRight.position.set((roomWidth - 2.7) / 4 + 1.35, 1.85, -2.6);
+    scene.add(backWallRight);
+
+    // 5. Teto sutil
+    const ceilingGeo = new THREE.PlaneGeometry(roomWidth, roomDepth);
+    const ceiling = new THREE.Mesh(ceilingGeo, new THREE.MeshStandardMaterial({ color: 0xeee9df, roughness: 0.9 }));
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set(0, wallHeight, -0.3);
+    scene.add(ceiling);
+
+    /* Janela para o Leme */
     const windowCanvas = renderWindowCanvas('golden');
     const windowTexture = new THREE.CanvasTexture(windowCanvas);
     windowTextureRef.current = windowTexture;
@@ -577,9 +630,7 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    /* -------------------------------------------------------------
-       1. MÁQUINA DE ESCREVER GLB NA MESA CENTRAL (typewriter.glb)
-    -------------------------------------------------------------- */
+    /* 1. MÁQUINA DE ESCREVER GLB NA MESA CENTRAL */
     gltfLoader.load(
       '/models/typewriter.glb',
       (gltf) => {
@@ -614,9 +665,7 @@ export default function App() {
 
     scene.add(deskGroup);
 
-    /* -------------------------------------------------------------
-       2. MÁQUINA DE ESCREVER GLB NO SOFÁ (NO COLO DE CLARICE)
-    -------------------------------------------------------------- */
+    /* 2. MÁQUINA DE ESCREVER GLB NO SOFÁ (ÚNICA NO SOFÁ) */
     gltfLoader.load(
       '/models/typewriter.glb',
       (gltf) => {
@@ -631,9 +680,8 @@ export default function App() {
         sofaTypewriter.scale.set(computedScale, computedScale, computedScale);
 
         const updatedBox = new THREE.Box3().setFromObject(sofaTypewriter);
-        // Posicionada sobre a almofada do sofá de linho
         sofaTypewriter.position.set(-1.85, 0.52 - updatedBox.min.y, 0.22);
-        sofaTypewriter.rotation.y = Math.PI / 12; // Leve inclinação natural
+        sofaTypewriter.rotation.y = Math.PI / 12;
         sofaTypewriter.rotation.x = 0.05;
 
         sofaTypewriter.traverse((child) => {
@@ -651,16 +699,14 @@ export default function App() {
       (error) => console.error('Erro ao carregar /models/typewriter.glb no sofá:', error)
     );
 
-    /* Móveis Autênticos Mantidos (Tapete Listrado Removido) */
+    /* Móveis Autênticos */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createModernistSofa(interactiveList));
     scene.add(createSideTableAndRotaryPhone(interactiveList));
     scene.add(createBookcaseCeramicsAndRecords());
     deskGroup.add(createDeskBookStacksAndCoffee());
 
-    /* -------------------------------------------------------------
-       3. CADEIRA DE BALANÇO GLB (rocking_chair.glb)
-    -------------------------------------------------------------- */
+    /* 3. CADEIRA DE BALANÇO GLB */
     gltfLoader.load(
       '/models/rocking_chair.glb',
       (gltf) => {
@@ -693,7 +739,7 @@ export default function App() {
       (error) => console.error('Erro ao carregar /models/rocking_chair.glb:', error)
     );
 
-    /* Hotspot markers Essenciais */
+    /* Hotspot markers */
     const markers = [
       { id: 'typewriter', pos: new THREE.Vector3(0, 1.25, -0.2), color: 0xf59e0b },
       { id: 'window', pos: new THREE.Vector3(0, 2.2, -2.4), color: 0x38bdf8 },
@@ -716,7 +762,7 @@ export default function App() {
     hotspotRingsRef.current = rings;
 
     /* Dust Motes System */
-    const dustSystem = createDustMotesSystem(300);
+    const dustSystem = createDustMotesSystem(240);
     dustSystem.setTimeOfDay(timeOfDay);
     scene.add(dustSystem.group);
     dustSystemRef.current = dustSystem;
@@ -852,7 +898,7 @@ export default function App() {
       {/* Botão VR */}
       <div ref={vrButtonContainerRef} className="absolute bottom-6 right-6 z-20 pointer-events-auto" />
 
-      {/* Modal Desktop da Máquina */}
+      {/* Modal Desktop */}
       {activeModal === 'typewriter' && (
         <div className="fixed inset-0 bg-black/75 z-40 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel w-full max-w-xl rounded-3xl p-6 relative border border-amber-400/30">
