@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   Volume2,
   VolumeX,
@@ -16,7 +17,6 @@ import {
 } from 'lucide-react';
 import {
   createWainscotingAndWallArt,
-  createThonetRockingChair,
   createModernistSofa,
   createStripedRug,
   createSlattedCoffeeTable,
@@ -26,8 +26,6 @@ import {
   createDeskBookStacksAndCoffee
 } from './furniture3D.ts';
 import {
-  WINDOW_PHOTO_PRESETS,
-  WindowPhotoPresetId,
   renderPhotographicWindow
 } from './windowPhotography.ts';
 import {
@@ -420,6 +418,8 @@ export default function App() {
     const interactiveList: THREE.Object3D[] = [];
     interactiveObjectsRef.current = interactiveList;
 
+    const gltfLoader = new GLTFLoader();
+
     /* ---------------- Teleport Marker (Chão) ---------------- */
     const markerGeo = new THREE.RingGeometry(0.18, 0.22, 32);
     const markerMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide });
@@ -451,7 +451,7 @@ export default function App() {
       vrRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
       vrRaycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-      // 1. Checa se o usuário clicou para fechar o painel 3D
+      // 1. Fechar painel 3D
       const uiIntersects = vrRaycaster.intersectObjects([spatialCloseBtnRef.current!].filter(Boolean), true);
       if (uiIntersects.length > 0) {
         if (spatialUIPanelRef.current) spatialUIPanelRef.current.visible = false;
@@ -460,7 +460,7 @@ export default function App() {
         return;
       }
 
-      // 2. Checa se o usuário clicou nos objetos interativos
+      // 2. Objetos interativos
       const objectIntersects = vrRaycaster.intersectObjects(interactiveObjectsRef.current, true);
       if (objectIntersects.length > 0) {
         let root: THREE.Object3D | null = objectIntersects[0].object;
@@ -473,7 +473,7 @@ export default function App() {
         }
       }
 
-      // 3. Teletransporte: Se clicou no chão
+      // 3. Teletransporte no chão
       if (floorRef.current) {
         const floorIntersects = vrRaycaster.intersectObject(floorRef.current);
         if (floorIntersects.length > 0 && cameraGroupRef.current) {
@@ -569,7 +569,7 @@ export default function App() {
     scene.add(windowLight.target);
     windowLightRef.current = windowLight;
 
-    /* Piso com suporte a Teletransporte */
+    /* Piso */
     const floorGeo = new THREE.PlaneGeometry(8, 8);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d271d, roughness: 0.65, metalness: 0.1 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -578,7 +578,7 @@ export default function App() {
     scene.add(floor);
     floorRef.current = floor;
 
-    /* Janela e Parede de Fundo */
+    /* Janela */
     const windowCanvas = renderWindowCanvas('golden');
     const windowTexture = new THREE.CanvasTexture(windowCanvas);
     windowTextureRef.current = windowTexture;
@@ -601,27 +601,65 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    // Máquina Olympia
-    const typewriterGroup = new THREE.Group();
-    typewriterGroup.position.set(0, 1.0, -0.2);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.34), new THREE.MeshStandardMaterial({ color: 0x222428 }));
-    typewriterGroup.add(body);
-    typewriterGroup.userData = { id: 'typewriter', title: 'Máquina de Escrever Olympia' };
-    interactiveList.push(typewriterGroup);
-    deskGroup.add(typewriterGroup);
+    /* 1. MÁQUINA DE ESCREVER GLB DO SKETCHFAB */
+    gltfLoader.load(
+      '/models/typewriter.glb',
+      (gltf) => {
+        const typewriter = gltf.scene;
+        typewriter.position.set(0, 0.99, -0.3);
+        typewriter.rotation.y = 0;
+        typewriter.scale.set(1, 1, 1);
+
+        typewriter.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        typewriter.userData = { id: 'typewriter', title: 'Máquina de Escrever Olympia' };
+        interactiveList.push(typewriter);
+        deskGroup.add(typewriter);
+      },
+      undefined,
+      (error) => console.error('Erro ao carregar /models/maquina.glb:', error)
+    );
 
     scene.add(deskGroup);
 
-    /* Authentic Furnishings */
+    /* Móveis Autênticos */
     scene.add(createWainscotingAndWallArt(interactiveList));
     scene.add(createStripedRug());
     scene.add(createModernistSofa(interactiveList));
-    scene.add(createThonetRockingChair(interactiveList));
     scene.add(createSlattedCoffeeTable(interactiveList));
     scene.add(createSideTableAndRotaryPhone(interactiveList));
     scene.add(createDiningNookAndGreenLamp(interactiveList));
     scene.add(createBookcaseCeramicsAndRecords());
     deskGroup.add(createDeskBookStacksAndCoffee());
+
+    /* 2. CADEIRA DE BALANÇO GLB DO SKETCHFAB */
+    gltfLoader.load(
+      '/models/rocking_chair.glb',
+      (gltf) => {
+        const chair = gltf.scene;
+        chair.position.set(-0.8, 0, 0.45);
+        chair.rotation.y = Math.PI / 4;
+        chair.scale.set(1, 1, 1);
+
+        chair.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        chair.userData = { id: 'rocking_chair', title: 'Cadeira de Balanço Thonet' };
+        interactiveList.push(chair);
+        scene.add(chair);
+      },
+      undefined,
+      (error) => console.error('Erro ao carregar /models/cadeira.glb:', error)
+    );
 
     /* Hotspot markers */
     const markers = [
@@ -680,14 +718,14 @@ export default function App() {
     };
     window.addEventListener('resize', onWindowResize);
 
-    /* ---------------- Snap Turn & Animation Loop ---------------- */
+    /* ---------------- Snap Turn & Loop ---------------- */
     const clock = new THREE.Clock();
     let snapCooldown = false;
 
     renderer.setAnimationLoop(() => {
       const time = clock.getElapsedTime();
 
-      // Rotação dos anéis
+      // Rotação dos anéis para a visão do jogador
       hotspotRingsRef.current.forEach((r) => {
         r.lookAt(camera.position);
         const scale = 1 + Math.sin(time * 3.0) * 0.08;
@@ -699,7 +737,7 @@ export default function App() {
         spatialUIPanelRef.current.lookAt(camera.position);
       }
 
-      // Snap Turn no Controle Direito (Analógico X)
+      // Snap Turn no Controle Direito
       const session = renderer.xr.getSession();
       if (session) {
         for (const source of session.inputSources) {
