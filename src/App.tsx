@@ -18,7 +18,6 @@ import {
 import {
   createWainscotingAndWallArt,
   createModernistSofa,
-  createStripedRug,
   createSideTableAndRotaryPhone,
   createBookcaseCeramicsAndRecords,
   createDeskBookStacksAndCoffee
@@ -310,7 +309,7 @@ export default function App() {
         'A curva da praia de Copacabana e o Forte do Leme.',
         'O som das marés acompanha suas criações literárias.'
       ]);
-    } else if (id === 'sofa') {
+    } else if (id === 'sofa' || id === 'sofa_typewriter') {
       playTypewriterClick(1.0);
       updateSpatialVRPanel('O Sofá Modernista & A Máquina no Colo', [
         '"Não sou escritora de gabinete formal. Escrevo no colo."',
@@ -578,7 +577,9 @@ export default function App() {
     deskTop.receiveShadow = true;
     deskGroup.add(deskTop);
 
-    /* 1. MÁQUINA DE ESCREVER GLB */
+    /* -------------------------------------------------------------
+       1. MÁQUINA DE ESCREVER GLB NA MESA CENTRAL (typewriter.glb)
+    -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/typewriter.glb',
       (gltf) => {
@@ -608,20 +609,58 @@ export default function App() {
         deskGroup.add(typewriter);
       },
       undefined,
-      (error) => console.error('Erro ao carregar /models/typewriter.glb:', error)
+      (error) => console.error('Erro ao carregar /models/typewriter.glb na mesa:', error)
     );
 
     scene.add(deskGroup);
 
-    /* Móveis Autênticos Mantidos */
+    /* -------------------------------------------------------------
+       2. MÁQUINA DE ESCREVER GLB NO SOFÁ (NO COLO DE CLARICE)
+    -------------------------------------------------------------- */
+    gltfLoader.load(
+      '/models/typewriter.glb',
+      (gltf) => {
+        const sofaTypewriter = gltf.scene;
+        const bbox = new THREE.Box3().setFromObject(sofaTypewriter);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+
+        const targetWidth = 0.34;
+        const currentWidth = size.x > 0 ? size.x : 1;
+        const computedScale = targetWidth / currentWidth;
+        sofaTypewriter.scale.set(computedScale, computedScale, computedScale);
+
+        const updatedBox = new THREE.Box3().setFromObject(sofaTypewriter);
+        // Posicionada sobre a almofada do sofá de linho
+        sofaTypewriter.position.set(-1.85, 0.52 - updatedBox.min.y, 0.22);
+        sofaTypewriter.rotation.y = Math.PI / 12; // Leve inclinação natural
+        sofaTypewriter.rotation.x = 0.05;
+
+        sofaTypewriter.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        sofaTypewriter.userData = { id: 'sofa_typewriter', title: 'Máquina Portátil no Sofá' };
+        interactiveList.push(sofaTypewriter);
+        scene.add(sofaTypewriter);
+      },
+      undefined,
+      (error) => console.error('Erro ao carregar /models/typewriter.glb no sofá:', error)
+    );
+
+    /* Móveis Autênticos Mantidos (Tapete Listrado Removido) */
     scene.add(createWainscotingAndWallArt(interactiveList));
-    scene.add(createStripedRug());
     scene.add(createModernistSofa(interactiveList));
     scene.add(createSideTableAndRotaryPhone(interactiveList));
     scene.add(createBookcaseCeramicsAndRecords());
     deskGroup.add(createDeskBookStacksAndCoffee());
 
-    /* 2. CADEIRA DE BALANÇO GLB */
+    /* -------------------------------------------------------------
+       3. CADEIRA DE BALANÇO GLB (rocking_chair.glb)
+    -------------------------------------------------------------- */
     gltfLoader.load(
       '/models/rocking_chair.glb',
       (gltf) => {
@@ -654,12 +693,12 @@ export default function App() {
       (error) => console.error('Erro ao carregar /models/rocking_chair.glb:', error)
     );
 
-    /* Hotspot markers Essenciais (Sem a mesa de centro removida) */
+    /* Hotspot markers Essenciais */
     const markers = [
       { id: 'typewriter', pos: new THREE.Vector3(0, 1.25, -0.2), color: 0xf59e0b },
       { id: 'window', pos: new THREE.Vector3(0, 2.2, -2.4), color: 0x38bdf8 },
       { id: 'rocking_chair', pos: new THREE.Vector3(-0.8, 0.95, 0.45), color: 0xeab308 },
-      { id: 'sofa', pos: new THREE.Vector3(-2.0, 0.85, 0.2), color: 0x10b981 },
+      { id: 'sofa_typewriter', pos: new THREE.Vector3(-1.85, 0.85, 0.22), color: 0x10b981 },
       { id: 'rotary_phone', pos: new THREE.Vector3(-2.05, 0.75, -0.95), color: 0xef4444 }
     ];
 
